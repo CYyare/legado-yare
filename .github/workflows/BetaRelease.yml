@@ -93,7 +93,7 @@ jobs:
 
           chmod +x gradlew
           echo "开始构建 ARM APK: $product - $typeName"
-          ./gradlew :$product:assembleRelease -ParmOnly=true --build-cache --parallel --daemon --warning-mode all
+          ./gradlew :$product:assembleRelease --build-cache --parallel --daemon --warning-mode all
           mkdir -p ${{ github.workspace }}/apk/
           bash $GITHUB_WORKSPACE/.github/scripts/collect-apks.sh \
             $GITHUB_WORKSPACE/app/build/outputs/apk \
@@ -102,16 +102,6 @@ jobs:
             ${{ env.VERSIONL }} \
             "$typeName" \
             arm
-
-          echo "开始构建通用 APK: $product - $typeName"
-          ./gradlew :$product:assembleRelease --build-cache --parallel --daemon --warning-mode all
-          bash $GITHUB_WORKSPACE/.github/scripts/collect-apks.sh \
-            $GITHUB_WORKSPACE/app/build/outputs/apk \
-            $GITHUB_WORKSPACE/apk \
-            ${{ env.product }} \
-            ${{ env.VERSIONL }} \
-            "$typeName" \
-            universal
 
           echo "移动mapping文件"
           mkdir -p ${{ github.workspace }}/mapping/
@@ -134,48 +124,22 @@ jobs:
 
       - name: Check Build Result
         run: |
-          expected_packages=(arm universal)
-          mapfile -d '' apks < <(find ${{ github.workspace }}/apk -maxdepth 1 \
+          mapfile -d '' apks < <(find "$GITHUB_WORKSPACE/apk" -maxdepth 1 \
             -type f -name 'legado_*.apk' -print0)
-          if [[ ${#apks[@]} -ne ${#expected_packages[@]} ]]; then
-            echo "Expected ${#expected_packages[@]} APKs, found ${#apks[@]}"
+          if [[ ${#apks[@]} -ne 1 ]]; then
+            echo "Expected 1 APK, found ${#apks[@]}"
             exit 1
           fi
-
-          declare -A verified=()
-          for apk in "${apks[@]}"; do
-            file_name=$(basename "$apk")
-            case "$file_name" in
-              *_universal_*) package_kind=universal ;;
-              *) package_kind=arm ;;
-            esac
-            if [[ -n "${verified[$package_kind]:-}" ]]; then
-              echo "Multiple APKs detected for $package_kind"
-              exit 1
-            fi
-
-            packaged_abis=$(unzip -Z1 "$apk" \
-              | sed -n 's#^lib/\([^/]*\)/.*#\1#p' \
-              | sort -u \
-              | paste -sd ' ' -)
-            if [[ "$package_kind" == "universal" ]]; then
-              expected_native_abis="arm64-v8a armeabi-v7a x86 x86_64"
-            else
-              expected_native_abis="arm64-v8a armeabi-v7a"
-            fi
-            if [[ "$packaged_abis" != "$expected_native_abis" ]]; then
-              echo "$package_kind APK contains unexpected native ABIs: $packaged_abis"
-              exit 1
-            fi
-            verified[$package_kind]=$apk
-          done
-
-          for package_kind in "${expected_packages[@]}"; do
-            if [[ -z "${verified[$package_kind]:-}" ]]; then
-              echo "Missing APK for $package_kind"
-              exit 1
-            fi
-          done
+          apk="${apks[0]}"
+          packaged_abis=$(unzip -Z1 "$apk" \
+            | sed -n 's#^lib/\([^/]*\)/.*#\1#p' \
+            | sort -u \
+            | paste -sd ' ' -)
+          if [[ "$packaged_abis" != "arm64-v8a" ]]; then
+            echo "APK contains unexpected native ABIs: $packaged_abis"
+            exit 1
+          fi
+          echo "APK OK: $(basename "$apk") [$packaged_abis]"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v7
