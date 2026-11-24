@@ -20,6 +20,13 @@ object AppConst {
 
     const val APP_TAG = "Legado"
 
+    /**
+     * fork 定制: 本构建使用自有签名, 与上游 BETA_SIGNATURE/OFFICIAL_SIGNATURE 均不匹配,
+     * 应用内更新只会下载到上游签名的 APK, 安装时因签名冲突必然失败。
+     * 设为 true 时关闭自动检查与手动检查更新入口, 更新改为从本仓库 Actions 产物安装。
+     */
+    const val FORK_DISABLE_UPDATE = true
+
     const val channelIdDownload = "channel_download"
     const val channelIdReadAloud = "channel_read_aloud"
     const val channelIdWeb = "channel_web"

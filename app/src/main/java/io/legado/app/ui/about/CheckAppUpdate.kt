@@ -2,6 +2,7 @@ package io.legado.app.ui.about
 
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import io.legado.app.constant.AppConst
 import io.legado.app.help.update.AppUpdate
 import io.legado.app.ui.widget.dialog.WaitDialog
 import io.legado.app.utils.showDialogFragment
@@ -10,6 +11,10 @@ import splitties.init.appCtx
 
 /** Shared by About and the optional My-page update entries. */
 fun Fragment.checkAppUpdate(beta: Boolean = false) {
+    if (AppConst.FORK_DISABLE_UPDATE) {
+        appCtx.toastOnUi("此构建已禁用应用内更新，请从 GitHub Actions 下载新包")
+        return
+    }
     val waitDialog = WaitDialog(requireContext())
     waitDialog.show()
     val request = if (beta) AppUpdate.checkBeta(lifecycleScope)
